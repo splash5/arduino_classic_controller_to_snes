@@ -13,4 +13,4 @@ Schematic
 
 IMPORTANT:
 
-Remember to disconnect 5V from SNES when you plug Arduino Nano into a USB port for safety.
+Remember to disconnect 5V from SNES when you plug Arduino Nano into USB port for safety.
