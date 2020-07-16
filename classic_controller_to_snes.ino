@@ -1,3 +1,5 @@
+#include <avr/wdt.h>
+
 #define ANALOG_DEAD_ZONE  0x10
  // 200KHz is much more stable on some 3rd-party controller
 #define IIC_SPEED         300000
@@ -9,11 +11,11 @@
 
 #include <Wire.h>
 
-volatile byte classic_controller_state = 0;
-volatile word snes_button_state = 0xffff;
-volatile byte rapid_fire_count = 0;
-volatile word rapid_fire_buttons = 0x0000;
-volatile word rapid_fire_speed = 0x0000;  // 0: slow, 1: fast, each bit maps buttons
+volatile uint8_t classic_controller_state = 0;
+volatile uint16_t snes_button_state = 0xffff;
+volatile uint16_t rapid_fire_buttons = 0x0000;
+volatile uint16_t rapid_fire_speed = 0x0000;  // 0: slow, 1: fast, each bit maps buttons
+volatile uint8_t rapid_fire_count = 0;
 
 byte i2c_data[32];
 
@@ -43,10 +45,14 @@ void setup()
   // detect connection using interrupt
   attachInterrupt(digitalPinToInterrupt(SNES_LATCH_PIN), snes_latch_triggered, RISING);
   attachInterrupt(digitalPinToInterrupt(EXTENSION_CONNECT), controller_connection_state_changed, CHANGE);
+
+  wdt_enable(WDTO_30MS);
 }
 
 void loop()
 {
+  wdt_reset();
+
   switch (classic_controller_state)
   {
     case 1:
@@ -267,8 +273,6 @@ void snes_latch_triggered()
   register byte clk_count, byte_count, abort_count;
   register byte button_state_8, rapid_fire_enable_8, rapid_fire_speed_8;
 
-//  asm volatile("cbi %[portb], 5\n\t" :: [portb] "I" (_SFR_IO_ADDR(PORTB)));
-
   // check if controller is disconnected
   asm volatile
   (
@@ -324,7 +328,7 @@ void snes_latch_triggered()
    // start polling clk signal
    // wait for clk falling
    "wait_for_clk_falling_%=:\n\t"
-   "cpi %[abort_count], 192\n\t"       // check if reach to abort count (40 is minimun, 192 for super momotaru dentetsu 2 -- super long latch)
+   "cpi %[abort_count], 192\n\t"      // check if reach to abort count (40 is minimun, 192 for super momotaru dentetsu 2 -- super long latch)
    "brsh end_of_snes_latching_%=\n\t" // force leave latching
    "inc %[abort_count]\n\t"
    // check clk falling
@@ -351,5 +355,4 @@ void snes_latch_triggered()
   );
 
   asm volatile("end_of_snes_latch_triggered:\n\t");
-//  asm volatile("sbi %[portb], 5\n\t" :: [portb] "I" (_SFR_IO_ADDR(PORTB)));
 }
